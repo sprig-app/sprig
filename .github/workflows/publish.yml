@@ -1,0 +1,40 @@
+name: Publish release
+
+# Publishes the files staged in a private draft release as a public release,
+# then removes the draft. Run it from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. 0.1.0"
+        required: true
+      staging:
+        description: "Tag name of the draft release holding the files"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      STAGING: ${{ inputs.staging }}
+    steps:
+      - name: Collect and verify the staged files
+        run: |
+          mkdir files
+          gh release download "$STAGING" --dir files
+          cd files
+          sha256sum -c SHA256SUMS
+      - name: Publish the release
+        run: |
+          gh release create "v$VERSION" files/* \
+            --target "${{ github.sha }}" \
+            --title "Sprig $VERSION" \
+            --notes "Ready-to-run Sprig builds. See the README for which file fits your system, and verify downloads with SHA256SUMS. The Mac builds are not notarized, and the Windows build has not yet been tested on Windows."
+      - name: Remove the draft
+        run: gh release delete "$STAGING" --yes
