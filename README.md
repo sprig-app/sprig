@@ -1,6 +1,6 @@
 # Sprig
 
-Sprig is a small self-hosted companion for playback sources and subtitles. You run it yourself — on a Mac, a Windows PC, a Linux server, or a free host such as alwaysdata — and connect it to the Prism app like a media server. There is no hosted Sprig service, account, or analytics.
+Sprig is a small self-hosted companion for playback sources and subtitles. You run it yourself — on a Mac, a Windows PC, a Linux server, or a free host such as alwaysdata — and connect it to the Vesper app like a media server. There is no hosted Sprig service, account, or analytics.
 
 This repository only publishes ready-to-run builds. Download the file for your system from the [latest release](https://github.com/sprig-app/sprig/releases/latest):
 
