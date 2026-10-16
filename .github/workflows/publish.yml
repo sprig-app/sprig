@@ -1,12 +1,13 @@
 name: Publish release
 
 # Publishes the files staged in a private draft release as a public release,
-# then removes the draft. Run it from the Actions tab.
+# pushes a container image built from the Linux archives, then removes the
+# draft. Run it from the Actions tab.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version, e.g. 0.1.0"
+        description: "Version, e.g. 0.1.1"
         required: true
       staging:
         description: "Tag name of the draft release holding the files"
@@ -14,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   publish:
@@ -30,11 +32,50 @@ jobs:
           gh release download "$STAGING" --dir files
           cd files
           sha256sum -c SHA256SUMS
+      - name: Prepare the container image
+        run: |
+          mkdir -p image/amd64 image/arm64
+          tar -xzf "files/Sprig-$VERSION-linux-x64.tar.gz" -C image/amd64 --strip-components=1
+          tar -xzf "files/Sprig-$VERSION-linux-arm64.tar.gz" -C image/arm64 --strip-components=1
+          cat > image/Dockerfile <<'EOF'
+          FROM oven/bun:1.3.14-slim
+          ARG TARGETARCH
+          COPY --chmod=755 ${TARGETARCH}/sprig /usr/local/bin/sprig
+          RUN mkdir -p /data && chown bun:bun /data
+          USER bun
+          ENV SPRIG_DATA_DIR=/data SPRIG_HOST=0.0.0.0 SPRIG_PORT=8787
+          VOLUME /data
+          EXPOSE 8787
+          HEALTHCHECK --interval=30s --timeout=4s --start-period=10s CMD bun -e 'const r=await fetch("http://127.0.0.1:8787/health");if(!r.ok)process.exit(1)'
+          CMD ["/usr/local/bin/sprig"]
+          EOF
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Push the container image
+        uses: docker/build-push-action@v6
+        with:
+          context: image
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=Sprig
+            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.licenses=MIT
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ inputs.version }}
+            ghcr.io/${{ github.repository }}:latest
       - name: Publish the release
         run: |
           gh release create "v$VERSION" files/* \
             --target "${{ github.sha }}" \
             --title "Sprig $VERSION" \
-            --notes "Ready-to-run Sprig builds. See the README for which file fits your system, and verify downloads with SHA256SUMS. The Mac builds are not notarized, and the Windows build has not yet been tested on Windows."
+            --notes "Ready-to-run Sprig builds. See the README for which file fits your system, and verify downloads with SHA256SUMS. Docker users can pull ghcr.io/${{ github.repository }}:$VERSION. The Mac builds are not notarized, and the Windows build has not yet been tested on Windows."
       - name: Remove the draft
         run: gh release delete "$STAGING" --yes

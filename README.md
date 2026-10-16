@@ -14,6 +14,8 @@ This repository only publishes ready-to-run builds. Download the file for your s
 
 Each release lists SHA-256 checksums in `SHA256SUMS`.
 
+**Docker:** pull `ghcr.io/sprig-app/sprig:latest` (arm64 and x64). The built-in Hosting guide has a ready Compose file. To update, run `docker compose pull` and then `docker compose up -d`; your data volume is kept.
+
 After Sprig starts, open it in a browser. Its built-in **Hosting guide** walks through setup, sharing outside your home, backups, and an AI-assistant setup brief you can paste into Claude, ChatGPT, Gemini, or another assistant.
 
 The Mac builds are not notarized; macOS may ask you to approve Sprig in **System Settings → Privacy & Security** the first time. The Windows build has not yet been tested on Windows.
